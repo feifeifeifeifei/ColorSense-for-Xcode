@@ -52,10 +52,14 @@
 		
 		_rgbaUIColorRegex = [NSRegularExpression regularExpressionWithPattern:@"(\\[\\s*UIColor\\s+colorWith|\\[\\s*\\[\\s*UIColor\\s+alloc\\]\\s*initWith)Red:\\s*([0-9]*\\.?[0-9]*f?)\\s*(\\/\\s*[0-9]*\\.?[0-9]*f?)?\\s+green:\\s*([0-9]*\\.?[0-9]*f?)\\s*(\\/\\s*[0-9]*\\.?[0-9]*f?)?\\s+blue:\\s*([0-9]*\\.?[0-9]*f?)\\s*(\\/\\s*[0-9]*\\.?[0-9]*f?)?\\s*alpha:\\s*([0-9]*\\.?[0-9]*f?)\\s*(\\/\\s*[0-9]*\\.?[0-9]*f?)?\\s*\\]" options:0 error:NULL];
 		_whiteUIColorRegex = [NSRegularExpression regularExpressionWithPattern:@"(\\[\\s*UIColor\\s+colorWith|\\[\\s*\\[\\s*UIColor\\s+alloc\\]\\s*initWith)White:\\s*([0-9]*\\.?[0-9]*f?)\\s*(\\/\\s*[0-9]*\\.?[0-9]*f?)?\\s+alpha:\\s*([0-9]*\\.?[0-9]*f?)\\s*(\\/\\s*[0-9]*\\.?[0-9]*f?)?\\s*\\]" options:0 error:NULL];
+        
 		_rgbaNSColorRegex = [NSRegularExpression regularExpressionWithPattern:@"\\[\\s*NSColor\\s+colorWith(Calibrated|Device)Red:\\s*([0-9]*\\.?[0-9]*f?)\\s*(\\/\\s*[0-9]*\\.?[0-9]*f?)?\\s+green:\\s*([0-9]*\\.?[0-9]*f?)\\s*(\\/\\s*[0-9]*\\.?[0-9]*f?)?\\s+blue:\\s*([0-9]*\\.?[0-9]*f?)\\s*(\\/\\s*[0-9]*\\.?[0-9]*f?)?\\s+alpha:\\s*([0-9]*\\.?[0-9]*f?)\\s*(\\/\\s*[0-9]*\\.?[0-9]*f?)?\\s*\\]" options:0 error:NULL];
 		_whiteNSColorRegex = [NSRegularExpression regularExpressionWithPattern:@"\\[\\s*NSColor\\s+colorWith(Calibrated|Device)White:\\s*([0-9]*\\.?[0-9]*f?)\\s*(\\/\\s*[0-9]*\\.?[0-9]*f?)?\\s+alpha:\\s*([0-9]*\\.?[0-9]*f?)\\s*(\\/\\s*[0-9]*\\.?[0-9]*f?)?\\s*\\]" options:0 error:NULL];
-		_constantColorRegex = [NSRegularExpression regularExpressionWithPattern:@"\\[\\s*(UI|NS)Color\\s+(black|darkGray|lightGray|white|gray|red|green|blue|cyan|yellow|magenta|orange|purple|brown|clear)Color\\s*\\]" options:0 error:NULL];
+//		_rgbaHEXColorRegex = [NSRegularExpression regularExpressionWithPattern:@"\\[\\s*UIColor\\s+colorWithHexString:@\"\\s*([0-9]*\\.?[0-9]*f?),\\s*([0-9]*\\.?[0-9]*f?),\\s*([0-9]*\\.?[0-9]*f?)\"]" options:0 error:NULL];
+        _rgbaHEXColorRegex = [NSRegularExpression regularExpressionWithPattern:@"\\[\\s*UIColor\\s+colorWithHexString:@\"(\\s*([A-Za-z0-9]*\\.?[0-9]*f?)|\\s*([0-9]*\\.?[0-9]*f?),\\s*([0-9]*\\.?[0-9]*f?),\\s*([0-9]*\\.?[0-9]*f?))\"]" options:0 error:NULL];//
 	}
+    //[UIColor colorWithHexString:@"1,233,2"];
+    //[UIColor colorWithHexString:@"017a81"];
 	return self;
 }
 
@@ -303,8 +307,8 @@
 			NSString *typeIndicator = [text substringWithRange:[result rangeAtIndex:1]];
 			if ([typeIndicator rangeOfString:@"init"].location != NSNotFound) {
 				foundColorType = OMColorTypeUIRGBAInit;
-			} else {
-				foundColorType = OMColorTypeUIRGBA;
+            }else {
+                foundColorType = OMColorTypeUIRGBA;
 			}
 			
 			// [UIColor colorWithRed:128 / 255.0 green:10 / 255 blue:123/255 alpha:128 /255]
@@ -322,6 +326,11 @@
 			alpha = [self dividedValue:alpha withDivisorRange:[result rangeAtIndex:9] inString:text];
 			
 			foundColor = [NSColor colorWithCalibratedRed:red green:green blue:blue alpha:alpha];
+            
+//            foundColor = [NSColor redColor];
+//            [UIColor colorWithRed:1.0 green:1.0 blue:1.0 alpha:1.0];
+//            [UIColor colorWithHexString:@"1,1,1"];
+//            [UIColor colorWithHexString:1.0 green:1.0 blue:1.0 alpha:1.0]
 			foundColorRange = colorRange;
 			*stop = YES;
 		}
@@ -424,6 +433,93 @@
 			}
 		}];
 	}
+    
+    //没有找到,
+    if (!foundColor)
+    {
+        [_rgbaHEXColorRegex enumerateMatchesInString:text options:0 range:NSMakeRange(0, text.length) usingBlock:^(NSTextCheckingResult *result, NSMatchingFlags flags, BOOL *stop) {
+                NSRange colorRange = [result range];
+                if(text.length < (colorRange.location+colorRange.length))
+                {
+                    return ;
+                }//[UIColor colorWithHexString:@"18,140,193"];
+                NSArray *hexArray = [[text substringWithRange:colorRange] componentsSeparatedByString:@"colorWithHexString:@\""];
+                if(hexArray.count<2)
+                {
+                    return ;
+                }
+                NSString *colors = hexArray.lastObject;
+                if(colors.length>2)
+                {
+                    colors = [colors substringToIndex:colors.length-2];
+                }
+                
+                foundColorType = OMColorTypeHEXRGBA;
+                NSArray *cc=@[@",",@"-",@"."];
+                NSString *stringToConvert = colors;
+                for(NSString *incc in cc)
+                {
+                    if([stringToConvert rangeOfString:incc].location!=NSNotFound)
+                    {
+                        NSArray *cs=[stringToConvert componentsSeparatedByString:incc];
+                        if(cs.count==3)
+                        {
+                            foundColor =  [NSColor colorWithCalibratedRed:((float) [cs[0]floatValue] / 255.0f)
+                                                                    green:((float) [cs[1]floatValue] / 255.0f)
+                                                                     blue:((float) [cs[2]floatValue] / 255.0f)
+                                                                    alpha:1.0f];
+                        }else{
+                            foundColor = [NSColor blackColor];
+                        }
+                        break;
+                    }
+                }
+                //[UIColor colorWithHexString:@"867a81"]
+                if(!foundColor)
+                {
+                    NSString *cString = [[stringToConvert stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceAndNewlineCharacterSet]] uppercaseString];
+                    
+                    // String should be 6 or 8 characters
+                    if ([cString length] < 6)
+                    {
+                        foundColor = [NSColor blackColor];
+                    }else
+                    
+                    // strip 0X if it appears
+                    if ([cString hasPrefix:@"0X"]) cString = [cString substringFromIndex:2];
+                    if ([cString hasPrefix:@"#"]) cString = [cString substringFromIndex:1];
+                    if ([cString length] != 6)
+                    {
+                        foundColor = [NSColor blackColor];
+                    }else{
+                        // Separate into r, g, b substrings
+                        NSRange range;
+                        range.location = 0;
+                        range.length = 2;
+                        NSString *rString = [cString substringWithRange:range];
+                        
+                        range.location = 2;
+                        NSString *gString = [cString substringWithRange:range];
+                        
+                        range.location = 4;
+                        NSString *bString = [cString substringWithRange:range];
+                        
+                        // Scan values
+                        unsigned int r, g, b;
+                        [[NSScanner scannerWithString:rString] scanHexInt:&r];
+                        [[NSScanner scannerWithString:gString] scanHexInt:&g];
+                        [[NSScanner scannerWithString:bString] scanHexInt:&b];
+                        
+                        foundColor =  [NSColor colorWithCalibratedRed:((float)r / 255.0f)
+                                                                green:((float)g/ 255.0f)
+                                                                 blue:((float) b / 255.0f)
+                                                                alpha:1.0f];
+                }
+                }
+            foundColorRange = colorRange;
+            *stop = YES;
+        }];
+    }//[UIColor colorWithHexString:@"255,255,255"];
 	
 	if (foundColor) {
 		if (matchedRange != NULL) {
@@ -490,7 +586,12 @@
 					colorString = [NSString stringWithFormat:@"[NSColor colorWithCalibratedRed:%.3f green:%.3f blue:%.3f alpha:%.3f]", red, green, blue, alpha];
 				} else if (colorType == OMColorTypeNSRGBADevice || colorType == OMColorTypeNSWhiteDevice) {
 					colorString = [NSString stringWithFormat:@"[NSColor colorWithDeviceRed:%.3f green:%.3f blue:%.3f alpha:%.3f]", red, green, blue, alpha];
-				}
+                } else if (colorType == OMColorTypeHEXRGBA){
+//                    colorString = [NSString stringWithFormat:@"[NSColor colorWithDeviceRed:%.3f green:%.3f blue:%.3f alpha:%.3f]", red, green, blue, alpha];
+//                    NSAlert *alert    = [[NSAlert alloc]init];
+//                    alert.messageText = colorString;
+//                    [alert runModal];
+                }
 			}
 		}
 	}

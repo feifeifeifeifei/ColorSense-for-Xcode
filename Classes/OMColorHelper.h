@@ -11,7 +11,7 @@
 
 typedef enum OMColorType {
 	OMColorTypeNone = 0,
-	
+    OMColorTypeHEXRGBA,             //[UIColor colorWithHexString:@"1,1,1"];
 	OMColorTypeUIRGBA,				//[UIColor colorWithRed:1.0 green:0.0 blue:0.0 alpha:1.0]
 	OMColorTypeUIRGBAInit,			//[[UIColor alloc] initWithRed:1.0 green:0.0 blue:0.0 alpha:1.0]
 	OMColorTypeUIWhite,				//[UIColor colorWithWhite:0.5 alpha:1.0]
@@ -46,8 +46,8 @@ BOOL OMColorTypeIsNSColor(OMColorType colorType) { return colorType >= OMColorTy
 	NSRegularExpression *_whiteNSColorRegex;
 	NSRegularExpression *_whiteUIColorRegex;
 	NSRegularExpression *_constantColorRegex;
+    NSRegularExpression *_rgbaHEXColorRegex;
 }
-
 @property (nonatomic, strong) OMPlainColorWell *colorWell;
 @property (nonatomic, strong) OMColorFrameView *colorFrameView;
 @property (nonatomic, strong) NSTextView *textView;
